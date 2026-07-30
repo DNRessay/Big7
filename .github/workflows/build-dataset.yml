@@ -1,0 +1,55 @@
+name: Build SA languages dataset
+
+on:
+  workflow_dispatch:
+    inputs:
+      fresh_start:
+        description: "Wipe checkpoint and start over"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 115  # stays under GitHub's / your 2-hour budget
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow huggingface_hub
+
+      - name: Restore previous progress
+        if: ${{ inputs.fresh_start != true }}
+        uses: actions/cache/restore@v4
+        with:
+          path: dev_combined
+          key: dev-combined-${{ github.run_id }}
+          restore-keys: |
+            dev-combined-
+
+      - name: Run cleaning pipeline
+        env:
+          TIME_BUDGET_MIN: "95"  # leaves ~20min headroom for cache save + upload
+        run: python scripts/build_dev_combined.py
+
+      - name: Save progress for next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: dev_combined
+          key: dev-combined-${{ github.run_id }}
+
+      - name: Upload JSONL output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev_combined
+          path: dev_combined/*.jsonl
+          retention-days: 7
