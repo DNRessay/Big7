@@ -71,7 +71,7 @@ def detect_columns(df):
         return "conversations", None
 
     en_col = next((c for c in cols if c.lower() in ENGLISH_NAMES), None)
-    str_cols = [c for c in cols if df[c].dtype == object]
+    str_cols = [c for c in cols if pd.api.types.is_string_dtype(df[c]) or df[c].dtype == object]
 
     if en_col:
         others = [c for c in str_cols if c != en_col and c.lower() not in NON_TEXT_COLS]
